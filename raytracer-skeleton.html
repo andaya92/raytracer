@@ -38,8 +38,7 @@ var canvasContext = canvas.getContext('2d');
 // Get an array representing all of the pixels
 // Arranged left to right, top to bottom
 var imageData = canvasContext.getImageData(0, 0, pixelsAcross, pixelsDown);
-// end canvas setup ************************************************************
-
+// end canvas setup *************************************************************************************************
 
 // Raytracer setup
 var fov = 45;   // if this changes, your code should still work
@@ -90,11 +89,8 @@ function pix2Byte(x,y){
 function generateRayForPixel(xPixelIndex, yPixelIndex) {
 	//Gives orientation	
 	//Inverted
-	var pixelCoordinate = [ (pixelHalfWidth-1)+(xPixelIndex * pixelWidth), (pixelHalfWidth+1)-(yPixelIndex * pixelWidth) ]; // inverted
-	// var pixelCoordinate = [ (pixelHalfWidth+1)-(xPixelIndex * pixelWidth), (pixelHalfWidth+1)-(yPixelIndex * pixelWidth) ]; // = todo: calculate pixel position
-
+	var pixelCoordinate = [ (pixelHalfWidth-1)+(xPixelIndex * pixelWidth), (pixelHalfWidth+1)-(yPixelIndex * pixelWidth) ];
 	var direction = new Vector3(pixelCoordinate[0], pixelCoordinate[1], 0).subtract(eyeCoordinate); // = vector from the eye to the pixel
-	
 
 	// Creates a ray that will automatically normalize the direction
 	// Uncomment this (the ray line of code) once you've calculated the pixelCoordinate in space and the
@@ -142,10 +138,10 @@ function updateAndRender(timeElapsed) {
 			var hitAnything = (sphereResult.hit || planeResult.hit);
 
 			if (sphereResult.hit && sphereResult.distance < planeResult.distance) {
-				
-				let normalDotLight = sphereResult.normal.dot(light.clone().subtract(sphereResult.point).normalize()); 
+				//vector subtraction, from point on surface to light
+				let vsub = light.clone().subtract(sphereResult.point).normalize()
+				let normalDotLight = sphereResult.normal.dot();
 				setPixelColor(xPixelIndex, yPixelIndex, normalDotLight); // middle gray
-				
 			}
 			if(planeResult.hit && planeResult.distance < sphereResult.distance){
 				// setPixelColor(xPixelIndex, yPixelIndex, Math.random(1)/2); // dark gray--- static lol
@@ -156,7 +152,6 @@ function updateAndRender(timeElapsed) {
 			if(! hitAnything){
 				setPixelColor(xPixelIndex, yPixelIndex, 0.1); // dark gray
 			}
-
 			//Test grdient. Dark center along y axis, fade to white in both x directions left and right
 			// let maxvalue = Math.sin(Math.sqrt(2)/4);
 			// setPixelColor(xPixelIndex, yPixelIndex, Math.abs(pixelRay.direction.x)/ maxvalue);
