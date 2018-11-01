@@ -3,9 +3,14 @@
 <head>
 	<meta charset="utf-8">
 	<title>Raytracer</title>
+	<style type="text/css">
+		.cvs{
+			border : 5px solid red;
+		}
+	</style>
 </head>
 <body>
-<canvas id='my-canvas'><canvas>
+<canvas id='my-canvas' class="cvs"><canvas>
 
 <script src='vector3.js'></script>
 <script src='ray.js'></script>
@@ -38,13 +43,16 @@ var imageData = canvasContext.getImageData(0, 0, pixelsAcross, pixelsDown);
 
 // Raytracer setup
 var fov = 45;   // if this changes, your code should still work
-var fovRadians; // todo -> convert degrees to radians
+let d2Rad = Math.PI / 180; //Converting factor for degrees to radians
+var fovRadians = fov * d2Rad; // todo -> convert degrees to radians
 
-var pixelWidth; // todo -> what's the size of a pixel from left to right?
-var pixelHalfWidth; // todo -> half of the pixel width
+var pixelWidth = 2/(pixelsAcross); // todo -> what's the size of a pixel from left to right? 
+var pixelHalfWidth = pixelWidth / 2; // todo -> half of the pixel width
 
 // How far away (scalar) the eye is from the image plane (see MV3202 guide for more info)
-var eyeDistance; // = todo -> hint: related to tangent and field of view (see slides)
+var eyeDistance = 1/Math.tan(fovRadians/2); // = todo -> hint: related to tangent and field of view (see slides)
+console.log("Eye Distance", eyeDistance);
+// |---- 1 ---|
 // -----------
 // |         /
 // |        /
@@ -69,17 +77,24 @@ var up = new Vector3(0, 1, 0);
 // They also provide a "raycast" function that you can pass a ray to
 // in order to find intersection between the ray and the object
 
-var sphere; // todo = new Sphere(..., ...);
-var plane; // todo = new Plane(..., ...);
-
+var sphere = new Sphere(new Vector3(0,0,0), 0.2); // todo = new Sphere(..., ...);
+var plane = new Plane(new Vector3(0,1,0), new Vector3(0, -0.2, 0)); // todo = new Plane(..., ...);
 // end of raytracer setup ******************************************************
 
+//Generates first byte positon of a given pixel via x,y coordiantes
+function pix2Byte(x,y){
+	return (y*4*pixelsAcross) + (x*4);
+}
 // -----------------------------------------------------------------------------
 // return a ray that goes from the eye point through the pixel at index (xPixelIndex, yPixelIndex)
 function generateRayForPixel(xPixelIndex, yPixelIndex) {
+	//Gives orientation	
+	//Inverted
+	var pixelCoordinate = [ (pixelHalfWidth-1)+(xPixelIndex * pixelWidth), (pixelHalfWidth+1)-(yPixelIndex * pixelWidth) ]; // inverted
+	// var pixelCoordinate = [ (pixelHalfWidth+1)-(xPixelIndex * pixelWidth), (pixelHalfWidth+1)-(yPixelIndex * pixelWidth) ]; // = todo: calculate pixel position
 
-	var pixelCoordinate; // = todo: calculate pixel position
-	var direction; // = vector from the eye to the pixel
+	var direction = new Vector3(pixelCoordinate[0], pixelCoordinate[1], 0).subtract(eyeCoordinate); // = vector from the eye to the pixel
+	
 
 	// Creates a ray that will automatically normalize the direction
 	// Uncomment this (the ray line of code) once you've calculated the pixelCoordinate in space and the
@@ -91,43 +106,60 @@ function generateRayForPixel(xPixelIndex, yPixelIndex) {
 // -----------------------------------------------------------------------------
 function setPixelColor(xPixelIndex, yPixelIndex, shadeOfGray /*[0,1]*/) {
 	var index;
+	// index => 1st term will put you at the beggining of each row, 2nd term will walk down the row...
+	// y= 0, x= 0:255
+	// y= 1, x= 0:255
+	// ...
+	// y= 255, x= 0:255
+
+	index = pix2Byte(xPixelIndex, yPixelIndex);	
 
 	imageData.data[index + 0] = shadeOfGray * 255;
-	imageData.data[index + 1] = shadeOfGray * 255;
-	imageData.data[index + 2] = shadeOfGray * 255;
+	imageData.data[index + 1] = shadeOfGray * 1;
+	imageData.data[index + 2] = shadeOfGray * 1;
 	imageData.data[index + 3] = 255;
-
-	// feel free to delete this when you are done implementing this function
-	if (index == undefined) {
-		alert('need to calculate the image data index for setting pixel color');
-		throw 'error';
-	}
 }
 
+// var light = new Vector3(1,0,0);
 // -----------------------------------------------------------------------------
 function updateAndRender(timeElapsed) {
+	var seconds = timeElapsed * 0.001;
+	var light = new Vector3(Math.cos(seconds) , 0, Math.sin(seconds)/2 );
 	// Go through every pixel
 	for (var yPixelIndex = 0; yPixelIndex < pixelsDown; ++yPixelIndex) {
 
 		for (var xPixelIndex = 0; xPixelIndex < pixelsAcross; ++xPixelIndex) {
 
 			// Uncomment this once you've coded generateRayForPixel
-			//var pixelRay = generateRayForPixel(xPixelIndex, yPixelIndex);
+			var pixelRay = generateRayForPixel(xPixelIndex, yPixelIndex);
 
-			// See if the ray intersects the sphere or the plane (or every object in our scene)
-			// Uncomment when your sphere or plane code is ready
-			//var sphereResult = sphere.raycast(pixelRay);
-			//var planeResult = plane.raycast(pixelRay);
+			// // See if the ray intersects the sphere or the plane (or every object in our scene)
+			// // Uncomment when your sphere or plane code is ready
+			var sphereResult = sphere.raycast(pixelRay);
+			var planeResult = plane.raycast(pixelRay);
+			planeResult.distance = (planeResult.distance == null) ? Number.POSITIVE_INFINITY : planeResult.distance;
+			sphereResult.distance = (sphereResult.distance == null) ? Number.POSITIVE_INFINITY : sphereResult.distance;
+			var hitAnything = (sphereResult.hit || planeResult.hit);
 
-			//var hitAnything = (sphereResult.hit || planeResult.hit);
-
-			//if (hitAnything) {
-				// determine  which hit object is the closest (in case there is more than 1 hit)
-				setPixelColor(xPixelIndex, yPixelIndex, 0.5); // middle gray
-			//} else {
-				// we didn't hit anything, choose an appropriate backbround color
+			if (sphereResult.hit && sphereResult.distance < planeResult.distance) {
+				
+				let normalDotLight = sphereResult.normal.dot(light.clone().subtract(sphereResult.point).normalize()); 
+				setPixelColor(xPixelIndex, yPixelIndex, normalDotLight); // middle gray
+				
+			}
+			if(planeResult.hit && planeResult.distance < sphereResult.distance){
+				// setPixelColor(xPixelIndex, yPixelIndex, Math.random(1)/2); // dark gray--- static lol
+				let vsub =  light.clone().subtract(planeResult.point);
+				let normDotLight = planeResult.normal.dot(vsub.normalized());
+				setPixelColor(xPixelIndex, yPixelIndex, normDotLight); // dark gray--- static lol
+			}			
+			if(! hitAnything){
 				setPixelColor(xPixelIndex, yPixelIndex, 0.1); // dark gray
-			//}
+			}
+
+			//Test grdient. Dark center along y axis, fade to white in both x directions left and right
+			// let maxvalue = Math.sin(Math.sqrt(2)/4);
+			// setPixelColor(xPixelIndex, yPixelIndex, Math.abs(pixelRay.direction.x)/ maxvalue);
 		}
 	}
 
